@@ -1,4 +1,5 @@
 local Body = require "body"
+local Camerae = require "camera"
 
 G = 6.674e-11
 
@@ -8,12 +9,13 @@ World.__index = World
 function World:new()
     local world = setmetatable({}, World)  -- create a new table and set its metatable
     world.bodies = {}  -- initialize bodies list
+    world.camera = Camera:new(world, 0, 0, 1)
     world.timeMultiplier = 1
     return world
 end
 
-function World:newBody(x, y, mass, radius)
-    local body = Body:new(x, y, mass, radius)
+function World:newBody(x, y, mass, radius, color)
+    local body = Body:new(x, y, mass, radius, color)
     table.insert(self.bodies, body)
     return body
 end
@@ -69,7 +71,20 @@ function World:setTimeMultiplier(multiplier)
 end
 
 function World:update(dt)
+    self.camera:update(dt)
+end
 
+function World:draw()
+    local windowWidth, windowHeight = love.graphics:getDimensions()
+
+    local cx, cy = windowWidth/2, windowHeight/2
+    for _, body in ipairs(self.bodies) do
+        local screenX = (body.x - self.camera.x) * self.camera.scale + cx
+        local screenY = (body.y - self.camera.y) * self.camera.scale + cy
+
+        love.graphics.setColor(body.color[1], body.color[2], body.color[3])
+        love.graphics.circle("fill", screenX, screenY, body.radius * self.camera.scale)
+    end
 end
 
 return World
