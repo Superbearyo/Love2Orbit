@@ -24,7 +24,7 @@ end
 
 function love.update(dt)
     world:update(dt)
-    world:updateBodies(earth, moon, dt)
+    world:updateBodies(dt)
     world.camera:focus(earth)
 end
 

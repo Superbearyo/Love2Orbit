@@ -1,5 +1,5 @@
 local Body = require "body"
-local Camerae = require "camera"
+local Camera = require "camera"
 
 G = 6.674e-11
 
@@ -20,29 +20,35 @@ function World:newBody(x, y, mass, radius, color)
     return body
 end
 
-function World:computeGravitationalForce(body1, body2)
-    local dx = body2.x - body1.x -- get distance between bodies in the x direction
-    local dy = body2.y - body1.y -- get distance between bodies in the y direction
-    local r = math.sqrt(dx * dx + dy * dy) -- calculate the distance between the bodies using the pythagorean theorem
+function World:computeGravitationalForce(bodies)
+    local forces = {}
+    for i, bodyI in ipairs(bodies) do
+        local Fx = 0
+        local Fy = 0
+        for j, bodyJ in ipairs(bodies) do
+            if bodyI ~= bodyJ then
+                local dx = bodyJ.x - bodyI.x -- get distance between bodies in the x direction
+                local dy = bodyJ.y - bodyI.y -- get distance between bodies in the y direction
+                local r = math.sqrt(dx * dx + dy * dy) -- calculate the distance between the bodies using the pythagorean theorem
 
-    if r == 0 then return 0, 0 end -- account for edge case to prevent division by zero
-
-    local F = G * ((body1.mass * body2.mass) / (r * r)) -- calculate the gravitational force between the bodies using newton's law of universal gravitation
-    local Fx = F * (dx / r) -- calculate the force in the x direction
-    local Fy = F * (dy / r) -- calculate the force in the y direction
-
-    return Fx, Fy -- return both force vectors
+                if r ~= 0 then 
+                    local F = G * ((bodyI.mass * bodyJ.mass) / (r * r)) -- calculate the gravitational force between the bodies using newton's law of universal gravitation
+                    Fx = Fx + (F * (dx / r)) -- calculate the force in the x direction
+                    Fy = Fy + (F * (dy / r)) -- calculate the force in the y direction
+                end
+            end
+        end
+        table.insert(forces, {Fx, Fy})
+    end
+    return forces
 end
 
-function World:computeAcceleration(body1, body2)
-    local Fx, Fy = self:computeGravitationalForce(body1, body2) -- Compute force vectors
-    body1.ax = Fx / body1.mass -- change acceleration for body #1 in the x direction
-    body1.ay = Fy / body1.mass -- change acceleration for body #1 in the y direction
-
-    -- take into account negative force due to newtons third law
-
-    body2.ax = -Fx / body2.mass -- change acceleration for body #2 in the x direction 
-    body2.ay = -Fy / body2.mass -- change acceleration for body #2 in the y direction
+function World:computeAcceleration(bodies)
+    local forces = self:computeGravitationalForce(bodies) -- Compute force vectors
+    for i, body in ipairs(bodies) do
+        body.ax = forces[i][1] / body.mass
+        body.ay = forces[i][2] / body.mass
+    end
 end
 
 function World:updateVelocity(body, dt) -- update new velocity using simple euler integration
@@ -55,15 +61,15 @@ function World:updatePosition(body, dt) -- update new position
     body.y = body.y + body.vy * dt
 end
 
-function World:updateBodies(body1, body2, dt)
+function World:updateBodies(dt)
 
     local scaled_dt = self.timeMultiplier * dt
+    self:computeAcceleration(self.bodies)
 
-    self:computeAcceleration(body1, body2)
-    self:updateVelocity(body1, scaled_dt)
-    self:updateVelocity(body2, scaled_dt)
-    self:updatePosition(body1, scaled_dt)
-    self:updatePosition(body2, scaled_dt)
+    for i, body in ipairs(self.bodies) do
+        self:updateVelocity(body, scaled_dt)
+        self:updatePosition(body, scaled_dt)
+    end
 end
 
 function World:setTimeMultiplier(multiplier)
